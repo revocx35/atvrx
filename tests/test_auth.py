@@ -232,12 +232,12 @@ def test_proxy_trust_takes_rightmost_untrusted_address(monkeypatch):
     from atvrx.web import trusted_proxies
     hosts = _TrustedHosts(trusted_proxies())
     # client-sent junk first, then the real client, then the proxy (as Nginx Proxy Manager appends)
-    assert hosts.get_trusted_client_address("6.6.6.6, 1.2.3.4, 192.168.68.30")[0] == "1.2.3.4"
+    assert hosts.get_trusted_client_address("6.6.6.6, 1.2.3.4, 192.168.1.30")[0] == "1.2.3.4"
     assert "203.0.113.9" not in hosts
     monkeypatch.setenv("ATVRX_TRUSTED_PROXIES", "none")
     assert trusted_proxies() == ""
-    monkeypatch.setenv("ATVRX_TRUSTED_PROXIES", "192.168.68.10")
-    assert "192.168.68.10" in _TrustedHosts(trusted_proxies()) and "192.168.68.11" not in _TrustedHosts(trusted_proxies())
+    monkeypatch.setenv("ATVRX_TRUSTED_PROXIES", "192.168.1.10")
+    assert "192.168.1.10" in _TrustedHosts(trusted_proxies()) and "192.168.1.11" not in _TrustedHosts(trusted_proxies())
 
 
 def test_no_users_shows_setup(tmp_path):
