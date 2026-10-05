@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATV-RX</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='14' height='10' rx='2' fill='%23c9772b'/%3E%3Crect x='3' y='5' width='10' height='6' fill='%23111'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="name">ATV-RX</span>
+    <span class="sub">analog TV picture recovery</span>
+  </div>
+  <div class="status">
+    <span id="pill" class="pill" data-state="idle">Idle</span>
+    <span id="device" class="device"></span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="viewer" aria-label="Picture">
+    <div class="screen">
+      <img id="picture" alt="Decoded TV picture" width="640" height="480">
+      <div id="overlay" class="overlay">Pick a channel and press Watch.</div>
+    </div>
+    <div class="readouts" aria-label="Signal">
+      <div><span class="k">Carrier</span><span id="r-carrier" class="v">–</span></div>
+      <div><span class="k">C/N</span><span id="r-cnr" class="v">–</span></div>
+      <div><span class="k">V-lock</span><span id="r-vlock" class="v">–</span></div>
+      <div><span class="k">H-lock</span><span id="r-hlock" class="v">–</span></div>
+      <div><span class="k">Sync S/N</span><span id="r-snr" class="v">–</span></div>
+      <div><span class="k">Fields/s</span><span id="r-rate" class="v">–</span></div>
+    </div>
+    <figure class="spectrum">
+      <canvas id="spectrum" height="130" aria-label="Spectrum around the tuned frequency"></canvas>
+      <figcaption>Spectrum. The marker is the vision carrier; the shaded band is what the decoder uses.</figcaption>
+    </figure>
+    <p id="message" class="message" role="status"></p>
+  </section>
+
+  <aside class="controls">
+    <form id="radio" class="panel" autocomplete="off">
+      <h2>Radio</h2>
+      <label>Source
+        <select id="source" name="source">
+          <option value="spyserver">SpyServer</option>
+          <option value="rtltcp">rtl_tcp</option>
+          <option value="file">Recording</option>
+        </select>
+      </label>
+      <div class="row net">
+        <label class="grow">Host <input id="host" name="host" type="text" inputmode="url" spellcheck="false"></label>
+        <label class="port">Port <input id="port" name="port" type="number" min="1" max="65535"></label>
+      </div>
+      <div class="file">
+        <label>Recording (8-bit IQ)
+          <select id="file" name="file"></select>
+        </label>
+        <div class="row">
+          <label class="grow">Sample rate (MS/s) <input id="file_rate" name="file_rate" type="number" step="0.001" min="0.25" max="20"></label>
+          <label class="grow">Centre (MHz) <input id="file_center_mhz" name="file_center_mhz" type="number" step="0.001"></label>
+        </div>
+      </div>
+      <div class="row buttons">
+        <button type="submit" id="watch" class="primary">Watch</button>
+        <button type="button" id="stop">Stop</button>
+      </div>
+    </form>
+
+    <section class="panel" aria-labelledby="h-tune">
+      <h2 id="h-tune">Tuning</h2>
+      <label>Vision carrier (MHz)
+        <div class="freq">
+          <button type="button" class="nudge" data-step="-0.1" aria-label="Down 100 kHz">−100k</button>
+          <button type="button" class="nudge" data-step="-0.01" aria-label="Down 10 kHz">−10k</button>
+          <input id="freq_mhz" name="freq_mhz" type="number" step="0.001" min="1" max="6000">
+          <button type="button" class="nudge" data-step="0.01" aria-label="Up 10 kHz">+10k</button>
+          <button type="button" class="nudge" data-step="0.1" aria-label="Up 100 kHz">+100k</button>
+        </div>
+      </label>
+      <label>Channel
+        <select id="channel"><option value="">Choose a channel…</option></select>
+      </label>
+      <label>Gain step <output id="gain-out" for="gain"></output>
+        <input id="gain" name="gain" type="range" min="0" max="29" step="1">
+      </label>
+      <label>TV standard
+        <select id="standard" name="standard"></select>
+      </label>
+      <label class="check"><input id="positive" name="positive" type="checkbox"> Positive modulation (France, System L)</label>
+      <label class="check"><input id="afc" name="afc" type="checkbox"> Follow carrier drift</label>
+    </section>
+
+    <section class="panel" aria-labelledby="h-pic">
+      <h2 id="h-pic">Picture</h2>
+      <label>Average fields <output id="average-out" for="average"></output>
+        <input id="average" name="average" type="range" min="1" max="8" step="1">
+      </label>
+      <p class="hint">More fields = less snow on still scenes, more smear on motion.</p>
+      <label>Line lock smoothing <output id="h_smooth-out" for="h_smooth"></output>
+        <input id="h_smooth" name="h_smooth" type="range" min="1" max="31" step="2">
+      </label>
+      <label>Vertical position <output id="v_shift-out" for="v_shift"></output>
+        <input id="v_shift" name="v_shift" type="range" min="-20" max="20" step="1">
+      </label>
+      <a id="snapshot" class="button" href="/api/snapshot.png" download="atvrx-snapshot.png">Save snapshot</a>
+    </section>
+
+    <section class="panel" aria-labelledby="h-scan">
+      <h2 id="h-scan">Find channels</h2>
+      <label>Search
+        <select id="plan"></select>
+      </label>
+      <div class="row range">
+        <label class="grow">From (MHz) <input id="start_mhz" type="number" step="1" value="470"></label>
+        <label class="grow">To (MHz) <input id="stop_mhz" type="number" step="1" value="862"></label>
+      </div>
+      <div class="row buttons">
+        <button type="button" id="scan" class="primary">Scan</button>
+      </div>
+      <progress id="scan-progress" max="1" value="0" hidden></progress>
+      <label class="check"><input id="show-all" type="checkbox"> Also list carriers without a picture</label>
+      <div class="table-wrap">
+        <table id="results" hidden>
+          <thead><tr><th>Ch</th><th>MHz</th><th>Level</th><th>Lines</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint">Scanning uses the radio, so it stops the picture. Rows with a picture show the line-rate signature of analog video.</p>
+    </section>
+  </aside>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

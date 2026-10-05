@@ -1,0 +1,18 @@
+services:
+  atvrx:
+    image: ghcr.io/revocx35/atvrx:latest
+    build:
+      context: .
+      target: app
+    container_name: atvrx
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    environment:
+      ATVRX_SOURCE: ${ATVRX_SOURCE:-spyserver}
+      ATVRX_HOST: ${ATVRX_HOST:-192.168.1.50}       # SpyServer (or rtl_tcp) address; set it in .env
+      ATVRX_PORT_SDR: ${ATVRX_PORT_SDR:-5555}
+      ATVRX_FREQ_MHZ: ${ATVRX_FREQ_MHZ:-487.25}     # vision carrier selected when the page opens
+      ATVRX_IDLE_RELEASE_S: ${ATVRX_IDLE_RELEASE_S:-30}
+    volumes:
+      - ./recordings:/recordings:ro                 # 8-bit IQ recordings (rtl_sdr format) to play back
