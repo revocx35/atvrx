@@ -17,7 +17,27 @@
     <span id="pill" class="pill" data-state="idle">Idle</span>
     <span id="device" class="device"></span>
   </div>
+  <div class="account">
+    <span id="who" class="who"></span>
+    <button type="button" id="pw-open">Change password</button>
+    <button type="button" id="logout">Sign out</button>
+  </div>
 </header>
+
+<dialog id="pw-dialog" aria-labelledby="pw-title">
+  <form id="pw-form" class="panel">
+    <h2 id="pw-title">Change password</h2>
+    <label>Current password <input id="pw-current" type="password" autocomplete="current-password" required maxlength="1024"></label>
+    <label>New password <input id="pw-new" type="password" autocomplete="new-password" minlength="10" required maxlength="256"></label>
+    <label>Repeat new password <input id="pw-repeat" type="password" autocomplete="new-password" minlength="10" required maxlength="256"></label>
+    <p class="hint">At least 10 characters. Other devices signed in to this account are signed out.</p>
+    <p id="pw-error" class="message error" role="alert"></p>
+    <div class="row buttons">
+      <button type="button" id="pw-cancel">Cancel</button>
+      <button type="submit" class="primary">Change password</button>
+    </div>
+  </form>
+</dialog>
 
 <main class="layout">
   <section class="viewer" aria-label="Picture">

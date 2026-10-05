@@ -14,9 +14,13 @@ let editing = new Set();     // inputs the user is touching; don't overwrite the
 async function api(path, body) {
   const res = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-ATVRX": "1" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (res.status === 401 && path !== "/api/password") {
+    location.replace("/login");
+    throw new Error("Signed out.");
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
   return data;
@@ -225,7 +229,13 @@ function connect(delay = 500) {
     }
   };
   ws.onopen = () => { delay = 500; };
-  ws.onclose = () => setTimeout(() => connect(Math.min(delay * 2, 8000)), delay);
+  ws.onclose = () => {
+    // a refused handshake looks like any other close; ask the API whether we are still signed in
+    fetch("/api/me").then((r) => {
+      if (r.status === 401) location.replace("/login");
+      else setTimeout(() => connect(Math.min(delay * 2, 8000)), delay);
+    }).catch(() => setTimeout(() => connect(Math.min(delay * 2, 8000)), delay));
+  };
 }
 
 // ---- wiring ---------------------------------------------------------------------------
@@ -290,10 +300,42 @@ async function init() {
   });
   $("show-all").addEventListener("change", () => current && renderResults((current.scan || {}).results || []));
   window.addEventListener("resize", drawSpectrum);
+  wireAccount();
 
   render(await api("/api/state"));
   drawSpectrum();
   connect();
+}
+
+// ---- account ---------------------------------------------------------------------------
+function wireAccount() {
+  api("/api/me").then((me) => { $("who").textContent = `Signed in as ${me.user}`; }).catch(() => {});
+  $("logout").addEventListener("click", async () => {
+    await api("/api/logout", {}).catch(() => {});
+    location.replace("/login");
+  });
+  const dlg = $("pw-dialog");
+  $("pw-open").addEventListener("click", () => {
+    $("pw-form").reset();
+    $("pw-error").textContent = "";
+    dlg.showModal();
+  });
+  $("pw-cancel").addEventListener("click", () => dlg.close());
+  $("pw-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("pw-error");
+    if ($("pw-new").value !== $("pw-repeat").value) {
+      err.textContent = "The new passwords do not match.";
+      return;
+    }
+    try {
+      await api("/api/password", { current: $("pw-current").value, new: $("pw-new").value });
+      dlg.close();
+      showMessage("Password changed.");
+    } catch (ex) {
+      err.textContent = ex.message;
+    }
+  });
 }
 
 init().catch((e) => showMessage(e.message, true));

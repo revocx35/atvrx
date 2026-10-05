@@ -30,7 +30,25 @@ Open `http://<host>:8095`. Use `docker compose up -d --build` to build from sour
 | `ATVRX_IDLE_RELEASE_S` | `30` | Hand the radio back after this long with no browser open |
 | `ATVRX_HTTP_PORT` | `8095` | Web port inside the container |
 
+| `ATVRX_TRUSTED_PROXIES` | `private` | Proxies whose `X-Forwarded-For`/`-Proto` are believed: `private`, `none`, or IPs/CIDRs. Set it to your reverse proxy's address when exposing the app |
+| `ATVRX_SECURE_COOKIES` | `auto` | `auto` marks the session cookie Secure when the page is reached over HTTPS; `true` or `false` force it |
+| `ATVRX_SESSION_DAYS` | `7` | How long a sign-in lasts |
+| `ATVRX_ADMIN_USER` / `ATVRX_ADMIN_PASSWORD` | – | Optional first account, created at start-up if it does not exist |
+
 The app holds the radio only while someone is watching or a scan is running. SpyServer serves one client at a time, so close the page (or press **Stop**) before connecting SDR# or SDR++.
+
+## Accounts
+
+Everything except the sign-in page needs an account. Manage accounts inside the container; changes apply at once, and a changed or removed account is signed out everywhere:
+
+```sh
+docker compose exec atvrx python -m atvrx.users add NAME      # asks for the password (at least 10 characters)
+docker compose exec atvrx python -m atvrx.users passwd NAME
+docker compose exec atvrx python -m atvrx.users remove NAME
+docker compose exec atvrx python -m atvrx.users list
+```
+
+Signed-in users can change their own password from the page. Passwords are stored as scrypt hashes in the `atvrx-data` volume. Failed sign-ins are limited per address (10), per account (5) and overall (100) within 15 minutes. Sessions are HttpOnly, SameSite=Strict cookies; API calls must carry an `X-ATVRX` header and are refused when the browser marks them cross-site, and the live WebSocket checks its Origin.
 
 ## Using it
 

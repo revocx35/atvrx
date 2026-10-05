@@ -14,9 +14,10 @@ RUN python -m pytest -q -p no:warnings tests
 
 FROM base AS app
 COPY atvrx ./atvrx
-RUN useradd --system --uid 10001 atvrx && mkdir -p /recordings && chown atvrx /recordings
+RUN useradd --system --uid 10001 atvrx && mkdir -p /recordings /data && chown atvrx /recordings /data
 USER atvrx
+VOLUME /data
 EXPOSE 8095
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8095/api/state', timeout=4)"
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8095/healthz', timeout=4)"
 CMD ["python", "-m", "atvrx"]

@@ -8,6 +8,7 @@ from PIL import Image
 
 import synth
 from atvrx.dsp import STANDARDS
+from atvrx.auth import UserStore
 from atvrx.session import Config, Session
 from atvrx.web import create_app
 from fakes import FS, FakeSpyServer, Transmitter
@@ -33,7 +34,10 @@ def spy():
 @pytest.fixture
 def client(tmp_path):
     sess = Session(Config(host="127.0.0.1"), tmp_path, idle_release_s=60)
-    with TestClient(create_app(sess)) as c:
+    users = UserStore(tmp_path / "users.json")
+    users.add("tester", "tester password")
+    with TestClient(create_app(sess, users=users), headers={"X-ATVRX": "1"}) as c:
+        assert c.post("/api/login", json={"username": "tester", "password": "tester password"}).status_code == 200
         c.session = sess
         yield c
     sess.stop()
@@ -59,7 +63,7 @@ def test_watch_decodes_picture_and_serves_it(client, spy):
     assert stats["vlock"] >= 90
     png = client.get("/api/snapshot.png")
     assert png.status_code == 200 and Image.open(io.BytesIO(png.content)).size == (768, 576)
-    with client.websocket_connect("/ws") as ws:
+    with client.websocket_connect("/ws", headers={"origin": "http://testserver"}) as ws:
         got_jpeg = got_json = False
         for _ in range(40):
             m = ws.receive()

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · ATV-RX</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='14' height='10' rx='2' fill='%23c9772b'/%3E%3Crect x='3' y='5' width='10' height='6' fill='%23111'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="signin">
+<main class="signin-box">
+  <div class="brand"><span class="name">ATV-RX</span><span class="sub">analog TV picture recovery</span></div>
+  <form id="login" class="panel" autocomplete="on">
+    <h1>Sign in</h1>
+    <label>Username <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="64"></label>
+    <label>Password <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+    <button type="submit" id="submit" class="primary">Sign in</button>
+    <p id="error" class="message error" role="alert"></p>
+  </form>
+  <div id="setup" class="panel" hidden>
+    <h1>No accounts yet</h1>
+    <p>Create the first account on the machine running ATV-RX:</p>
+    <pre>docker compose exec atvrx python -m atvrx.users add NAME</pre>
+    <p class="hint">Or set ATVRX_ADMIN_USER and ATVRX_ADMIN_PASSWORD before starting the container.</p>
+  </div>
+</main>
+<script src="/static/login.js"></script>
+</body>
+</html>
