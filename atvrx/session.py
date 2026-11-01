@@ -50,6 +50,9 @@ class Session:
         self.recordings = recordings
         self.idle_release_s = idle_release_s
         self._lock = threading.Lock()
+        # Serialises starting and stopping workers: the web layer calls these from parallel request
+        # threads, and two interleaved starts left a worker whose stop event nobody held.
+        self._control = threading.RLock()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._pending: dict = {}
@@ -103,13 +106,14 @@ class Session:
         self._run(lambda: self._scan_loop(plan, start_mhz, stop_mhz), scan_plan=plan)
 
     def stop(self, message: str = "") -> None:
-        self._stop.set()
-        t = self._thread
-        if t is not None and t is not threading.current_thread():
-            t.join(timeout=10)
-        with self._lock:
-            self.state, self.message = "idle", message
-            self.scan_state["running"] = False
+        with self._control:
+            self._stop.set()
+            t = self._thread
+            if t is not None and t is not threading.current_thread():
+                t.join(timeout=10)
+            with self._lock:
+                self.state, self.message = "idle", message
+                self.scan_state["running"] = False
 
     def viewer_join(self) -> None:
         with self._lock:
@@ -151,16 +155,17 @@ class Session:
 
     # -- worker threads ------------------------------------------------------------------
     def _run(self, target, scan_plan: str | None = None) -> None:
-        self.stop()
-        self._stop = threading.Event()
-        with self._lock:
-            self._pending = {}
-            self.state, self.message, self.stats = "connecting", "", {}
-            self._frame, self._viewer_seen = None, time.monotonic()
-            if scan_plan is not None:
-                self.scan_state = {"running": True, "progress": 0.0, "plan": scan_plan, "results": []}
-        self._thread = threading.Thread(target=self._guard, args=(target, self._stop), daemon=True)
-        self._thread.start()
+        with self._control:
+            self.stop()
+            self._stop = threading.Event()
+            with self._lock:
+                self._pending = {}
+                self.state, self.message, self.stats = "connecting", "", {}
+                self._frame, self._viewer_seen = None, time.monotonic()
+                if scan_plan is not None:
+                    self.scan_state = {"running": True, "progress": 0.0, "plan": scan_plan, "results": []}
+            self._thread = threading.Thread(target=self._guard, args=(target, self._stop), daemon=True)
+            self._thread.start()
 
     def _guard(self, target, stop: threading.Event) -> None:
         try:
